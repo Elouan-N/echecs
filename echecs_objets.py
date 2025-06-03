@@ -147,7 +147,7 @@ class Disposition:
   def pat(self):
     return self.coups_possibles==[] and not (self+Coup([0,0],[0,0])).echec(self.trait_blanc)
 
-  def evalue(self,blanc):
+  def evalue(self,blanc,a,b,c,d):
     if self.mat() or self.pat():
       return 100*int(blanc==self.trait_blanc)-50
     
@@ -179,10 +179,10 @@ class Disposition:
       (2.5+2*int(blanc))*(1-X)+self.roipos[int(not self.trait_blanc)][1]*X,
     ]
     return (0
-    + 10*(points[int(blanc)]-points[int(not blanc)])/49
-    + 1*(1-sqrt((barycentre[0]-objectif[0])**2+(barycentre[1]-objectif[1])**2)/8)
-    + 2*menacees[int(blanc)]/40
-    - 4*menacees[int(not blanc)]/40
+    + a*(points[int(blanc)]-points[int(not blanc)])/49
+    + b*(1-sqrt((barycentre[0]-objectif[0])**2+(barycentre[1]-objectif[1])**2)/8)
+    + c*menacees[int(blanc)]/40
+    - d*menacees[int(not blanc)]/40
     )
 
 class Theme:
