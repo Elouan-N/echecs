@@ -197,6 +197,7 @@ dispo_courante=DISPO_DE_BASE
 i_theme=0
 theme_courant=THEMES[i_theme]
 t=dict([(i,[]) for i in range(75)])
+a,b,c,d=6,1,2,3
 
 def attendre(touche):
   while not keydown(touche):
@@ -217,6 +218,31 @@ def affichage(messages):
     draw_string("Pour quitter cette",160-5*18,136,theme_courant.cols[6],theme_courant.cols[5])
     draw_string("fenetre pressez OK",160-5*18,154,theme_courant.cols[6],theme_courant.cols[5])
 
+def change_coeffs():
+  global a,b,c,d
+  fill_rect(0,0,320,222,theme_courant.cols[5])
+  draw_string("Modifier les coeffs de l'IA",25,10,theme_courant.cols[6],theme_courant.cols[5])
+  l_focus=[a,b,c,d]
+  focus=0
+  while not keydown(KEY_OK):
+    draw_string("materiel : "+str(a)+" ",50,80,theme_courant.cols[6],theme_courant.cols[5])
+    draw_string("barycentre : "+str(b)+" ",50,110,theme_courant.cols[6],theme_courant.cols[5])
+    draw_string("je menace : "+str(c)+" ",50,140,theme_courant.cols[6],theme_courant.cols[5])
+    draw_string("menaces ext : "+str(d)+" ",50,170,theme_courant.cols[6],theme_courant.cols[5])
+    fill_rect(20,80,20,120,theme_courant.cols[5])
+    draw_string("->",20,80+30*focus,theme_courant.cols[6],theme_courant.cols[5])
+    if keydown(KEY_UP):
+      focus=(focus-1)%4
+    elif keydown(KEY_DOWN):
+      focus=(focus+1)%4
+    elif keydown(KEY_PLUS):
+      l_focus[focus]=min(15,max(0,l_focus[focus]+1))
+    elif keydown(KEY_MINUS):
+      l_focus[focus]=min(15,max(0,l_focus[focus]-1))
+    a,b,c,d=l_focus
+    sleep(0.2)
+  sleep(0.2)
+
 def deplacement():
   global i_theme,theme_courant
   if keydown(KEY_LEFT) and focus_target[mode][0]>0:
@@ -235,9 +261,12 @@ def deplacement():
     i_theme=(i_theme+1)%len(THEMES)
     theme_courant=THEMES[i_theme]
     dessin()
+  elif keydown(KEY_DOT):
+    change_coeffs()
+    dessin()
 
-def meilleurs_coups(disposition,n):
-  result = [(coup,(disposition+coup).evalue(disposition.trait_blanc)) for coup in disposition.coups_possibles]
+def meilleurs_coups(disposition,n,a,b,c,d):
+  result = [(coup,(disposition+coup).evalue(disposition.trait_blanc,a,b,c,d)) for coup in disposition.coups_possibles]
   meilleurs=[]
   for _ in range(n):
     if result==[]:
@@ -246,17 +275,21 @@ def meilleurs_coups(disposition,n):
     result.remove(meilleurs[-1])
   return list(map(lambda elt:elt[0],meilleurs))
 
-def ia(disposition):
-  meilleurs=meilleurs_coups(disposition,4)
+def ia(disposition,a,b,c,d):
+  meilleurs=meilleurs_coups(disposition,4,a,b,c,d)
   if len(meilleurs)==1:
     return meilleurs[0]
   dico_meilleurs=dict()
   for coup in meilleurs:
     nouv_dispo=disposition+coup
-    nouv_meilleurs=meilleurs_coups(disposition,1)
-    dico_meilleurs[coup]=(nouv_dispo+nouv_meilleurs[0]).evalue(disposition.trait_blanc)
+    nouv_dispo.coups_possibles()
+    nouv_meilleurs=meilleurs_coups(nouv_dispo,1,a,b,c,d)
+    if nouv_meilleurs==[]:
+      return coup
+    dico_meilleurs[coup]=(nouv_dispo+nouv_meilleurs[0]).evalue(disposition.trait_blanc,a,b,c,d)
+  return max(dico_meilleurs.items(),key=lambda item:item[1])[0]
+  # n influe pas
   coups_tries=sorted(dico_meilleurs.items(),key=lambda item:item[1],reverse=True)
-  return coups_tries[0][0]
   somme=sum(map(lambda item:item[1],coups_tries))
   alea=random()*somme
   for paire in coups_tries:
@@ -296,7 +329,7 @@ def main():
       elif dispo_courante.pat():
         fin=["Match nul"]
       else:
-        dispo_courante=dispo_courante+ia(dispo_courante)
+        dispo_courante=dispo_courante+ia(dispo_courante,a,b,c,d)
         dessin()
         dispo_courante.coups_possibles()
         if dispo_courante.mat():
@@ -306,9 +339,6 @@ def main():
     else:
       affichage([repr(coup)+" n'est","pas valide"])
       attendre(KEY_OK)
-  for paire in t.items():
-    if paire[1]!=[]:
-      print(paire[0],sum(paire[1])/len(paire[1])/paire[0])
   affichage(fin)
   attendre(KEY_OK)
   dessin()
@@ -318,9 +348,6 @@ def test1():
     dispo=DISPO_DE_BASE
     dispo.dessin(THEMES[2])
     while not dispo.mat() and not dispo.pat():
-      t1=monotonic()
-      dispo=dispo+ia(dispo)
-      t2=monotonic()
-      print(t2-t1)
+      dispo=dispo+ia(dispo,a,b,c,d)
       dispo.dessin(THEMES[2])
       dispo.coups_possibles()
